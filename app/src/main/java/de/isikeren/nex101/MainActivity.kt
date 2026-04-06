@@ -28,7 +28,8 @@ private enum class Ekran {
     RUNDE_DETAY,
     VORHERIGE_SPIELE,
     VORHERIGES_OYUN_DETAY,
-    VORHERIGES_RUNDE_DETAY
+    VORHERIGES_RUNDE_DETAY,
+    STATISTIK
 }
 
 class MainActivity : ComponentActivity() {
@@ -61,7 +62,8 @@ class MainActivity : ComponentActivity() {
                         onYeniOyunClick = { aktifEkran = Ekran.YENI_OYUN },
                         onOyuncuYonetClick = { aktifEkran = Ekran.OYUNCU_YONETIM },
                         onOyunuFortsetzenClick = { aktifEkran = Ekran.OYUN_DETAY },
-                        onVorherigeSpieleClick = { aktifEkran = Ekran.VORHERIGE_SPIELE }
+                        onVorherigeSpieleClick = { aktifEkran = Ekran.VORHERIGE_SPIELE },
+                        onStatistikClick = { aktifEkran = Ekran.STATISTIK }
                     )
 
                     Ekran.YENI_OYUN -> YeniOyunEkrani(
@@ -443,6 +445,13 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                     }
+
+                    Ekran.STATISTIK -> StatistikEkrani(
+                        onGeriClick = { aktifEkran = Ekran.ANA_SAYFA },
+                        onOyuncuClick = { oyuncuId ->
+                            // Detail-Statistik pro Spieler kommt später.
+                        }
+                    )
                 }
             }
         }

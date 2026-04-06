@@ -42,7 +42,8 @@ fun AnaSayfa(
     onYeniOyunClick: () -> Unit,
     onOyuncuYonetClick: () -> Unit,
     onOyunuFortsetzenClick: () -> Unit,
-    onVorherigeSpieleClick: () -> Unit
+    onVorherigeSpieleClick: () -> Unit,
+    onStatistikClick: () -> Unit
 ) {
     Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
         Column(
@@ -64,7 +65,8 @@ fun AnaSayfa(
                 onYeniOyunClick = onYeniOyunClick,
                 onOyuncuYonetClick = onOyuncuYonetClick,
                 onOyunuFortsetzenClick = onOyunuFortsetzenClick,
-                onVorherigeSpieleClick = onVorherigeSpieleClick
+                onVorherigeSpieleClick = onVorherigeSpieleClick,
+                onStatistikClick = onStatistikClick
             )
         }
     }
@@ -125,7 +127,8 @@ private fun AltMenu(
     onYeniOyunClick: () -> Unit,
     onOyuncuYonetClick: () -> Unit,
     onOyunuFortsetzenClick: () -> Unit,
-    onVorherigeSpieleClick: () -> Unit
+    onVorherigeSpieleClick: () -> Unit,
+    onStatistikClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -139,7 +142,7 @@ private fun AltMenu(
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             AnaMenuButonu(text = "Spieler verwalten", onClick = onOyuncuYonetClick)
-            AnaMenuButonu(text = "Statistiken", onClick = { })
+            AnaMenuButonu(text = "Statistiken", onClick = onStatistikClick)
             AnaMenuButonu(text = "Vorherige Spiele", onClick = onVorherigeSpieleClick)
         }
 
@@ -234,7 +237,8 @@ fun AnaSayfaPreview() {
                 onYeniOyunClick = {},
                 onOyuncuYonetClick = {},
                 onOyunuFortsetzenClick = {},
-                onVorherigeSpieleClick = {}
+                onVorherigeSpieleClick = {},
+                onStatistikClick = {}
             )
         }
     }
@@ -254,7 +258,8 @@ private fun AnaSayfaOhneAktivesSpielPreview() {
                 onYeniOyunClick = {},
                 onOyuncuYonetClick = {},
                 onOyunuFortsetzenClick = {},
-                onVorherigeSpieleClick = {}
+                onVorherigeSpieleClick = {},
+                onStatistikClick = {}
             )
         }
     }

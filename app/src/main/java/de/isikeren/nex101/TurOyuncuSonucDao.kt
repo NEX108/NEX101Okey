@@ -29,10 +29,29 @@ interface TurOyuncuSonucDao {
     @Query("SELECT * FROM tur_oyuncu_sonuclari WHERE turId = :turId ORDER BY pozisyon ASC")
     suspend fun turunOyuncuSonuclariniGetirListe(turId: Int): List<TurOyuncuSonucEntity>
 
-    @Query("SELECT * FROM tur_oyuncu_sonuclari WHERE oyuncuId = :oyuncuId ORDER BY id ASC")
+    @Query(
+        """
+        SELECT tos.*
+        FROM tur_oyuncu_sonuclari tos
+        INNER JOIN turlar t ON t.id = tos.turId
+        INNER JOIN oyunlar o ON o.id = t.oyunId
+        WHERE tos.oyuncuId = :oyuncuId
+          AND o.durum = 'bitti'
+        ORDER BY tos.id ASC
+        """
+    )
     suspend fun oyuncununTumTurSonuclariniGetir(oyuncuId: Int): List<TurOyuncuSonucEntity>
 
-    @Query("SELECT COUNT(*) FROM tur_oyuncu_sonuclari WHERE oyuncuId = :oyuncuId")
+    @Query(
+        """
+        SELECT COUNT(*)
+        FROM tur_oyuncu_sonuclari tos
+        INNER JOIN turlar t ON t.id = tos.turId
+        INNER JOIN oyunlar o ON o.id = t.oyunId
+        WHERE tos.oyuncuId = :oyuncuId
+          AND o.durum = 'bitti'
+        """
+    )
     suspend fun oyuncununOynadigiTurSayisiniGetir(oyuncuId: Int): Int
 
     @Query("SELECT COUNT(*) FROM tur_oyuncu_sonuclari WHERE oyuncuId = :oyuncuId AND acamadi = 1")

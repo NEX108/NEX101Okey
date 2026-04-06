@@ -1,4 +1,3 @@
-
 package de.isikeren.nex101
 
 import androidx.room.Dao
@@ -40,5 +39,16 @@ interface CezaDao {
 
     @Query("SELECT COALESCE(SUM(puan), 0) FROM cezalar WHERE kirmiziOyuncuId = :oyuncuId AND cezaTipi = :cezaTipi")
     suspend fun cezaToplamPuaniniGetir(oyuncuId: Int, cezaTipi: String): Int
-}
 
+    @Query(
+        """
+        SELECT COALESCE(SUM(c.puan), 0)
+        FROM cezalar c
+        INNER JOIN turlar t ON t.id = c.turId
+        INNER JOIN oyunlar o ON o.id = t.oyunId
+        WHERE c.kirmiziOyuncuId = :oyuncuId
+          AND o.durum = 'bitti'
+        """
+    )
+    suspend fun oyuncununCezaPuanToplaminiGetir(oyuncuId: Int): Int
+}
