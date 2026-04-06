@@ -26,6 +26,7 @@ data class CezaOyuncuSecimi(
 data class CezaEkraniUiState(
     val turNo: Int,
     val mod: String,
+    val duzenlenenCezaId: Int? = null,
     val seciliCezaTipi: CezaTipi? = null,
     val hedefOyuncular: List<CezaOyuncuSecimi> = emptyList(),
     val puanText: String = "",
@@ -34,11 +35,14 @@ data class CezaEkraniUiState(
 )
 
 data class CezaKaydi(
+    val id: Int,
     val turNo: Int,
     val cezaTipi: CezaTipi,
     val puan: Int,
+    val kirmiziOyuncuId: Int? = null,
     val kirmiziOyuncuAdi: String,
     val kirmiziTakimRengiArgb: Long,
+    val yesilOyuncuId: Int? = null,
     val yesilOyuncuAdi: String? = null,
     val yesilTakimRengiArgb: Long? = null
 )

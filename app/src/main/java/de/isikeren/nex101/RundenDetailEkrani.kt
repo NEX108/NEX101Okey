@@ -3,6 +3,8 @@ package de.isikeren.nex101
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -358,6 +360,7 @@ private fun OyuncuDetayKolonu(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun CezaDetaySatiri(
     ceza: CezaKaydi,
@@ -371,7 +374,10 @@ private fun CezaDetaySatiri(
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
                 shape = MaterialTheme.shapes.small
             )
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onClick
+            )
             .padding(6.dp)
     ) {
         Text(
@@ -430,6 +436,7 @@ private fun RundenDetailEkraniPreview() {
                     oyuncu4SonucDetayi = "acamadi",
                     cezaListesi = listOf(
                         CezaKaydi(
+                            id = 1,
                             turNo = 4,
                             cezaTipi = CezaTipi.TAS_CEKILDI,
                             puan = 50,
@@ -439,6 +446,7 @@ private fun RundenDetailEkraniPreview() {
                             yesilTakimRengiArgb = 0xFFC62828L
                         ),
                         CezaKaydi(
+                            id = 2,
                             turNo = 4,
                             cezaTipi = CezaTipi.OKEY_ATTI,
                             puan = 101,
@@ -446,6 +454,7 @@ private fun RundenDetailEkraniPreview() {
                             kirmiziTakimRengiArgb = 0xFFC62828L
                         ),
                         CezaKaydi(
+                            id = 3,
                             turNo = 4,
                             cezaTipi = CezaTipi.DIGER,
                             puan = 70,

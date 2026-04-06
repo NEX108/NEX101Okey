@@ -36,6 +36,7 @@ class MainActivity : ComponentActivity() {
                 var aktifOyunOzeti by remember { mutableStateOf<OyunBaslangicOzeti?>(null) }
                 var rundeBeendenUiState by remember { mutableStateOf<RundeBeendenUiState?>(null) }
                 var cezaUiState by remember { mutableStateOf<CezaEkraniUiState?>(null) }
+                var duzenlenenCezaKaydi by remember { mutableStateOf<CezaKaydi?>(null) }
                 var seciliTurDetayNo by remember { mutableStateOf<Int?>(null) }
                 val aktifRundenListe = remember { mutableStateListOf<Int>() }
                 var aktifTurNoDurumu by remember { mutableStateOf<Int?>(null) }
@@ -64,6 +65,7 @@ class MainActivity : ComponentActivity() {
                             cezaUiState = null
                             cezaKayitlari.clear()
                             seciliTurDetayNo = null
+                            duzenlenenCezaKaydi = null
                             aktifEkran = Ekran.OYUN_DETAY
                         }
                     )
@@ -100,6 +102,7 @@ class MainActivity : ComponentActivity() {
                             aktifEkran = Ekran.RUNDE_BEENDEN
                         },
                         onCezaClick = { turNo ->
+                            duzenlenenCezaKaydi = null
                             cezaUiState = CezaEkraniUiState(
                                 turNo = turNo,
                                 mod = aktifOyunOzeti?.mod ?: "ortak",
@@ -158,22 +161,19 @@ class MainActivity : ComponentActivity() {
                         if (uiState != null) {
                             CezaEkrani(
                                 uiState = uiState,
-                                onGeriClick = { aktifEkran = Ekran.OYUN_DETAY },
+                                onGeriClick = {
+                                    duzenlenenCezaKaydi = null
+                                    aktifEkran = if (uiState.duzenlenenCezaId != null) Ekran.RUNDE_DETAY else Ekran.OYUN_DETAY
+                                },
                                 onKaydetVeKapat = {
-                                    it.toCezaKaydi()?.let { kayit ->
-                                        val mevcutListe = cezaKayitlari[it.turNo]?.toMutableList() ?: mutableListOf()
-                                        mevcutListe.add(kayit)
-                                        cezaKayitlari[it.turNo] = mevcutListe
-                                    }
+                                    kaydetVeyaGuncelleCeza(it, cezaKayitlari)
+                                    duzenlenenCezaKaydi = null
                                     cezaUiState = it.sifirlanmisKopya()
-                                    aktifEkran = Ekran.OYUN_DETAY
+                                    aktifEkran = if (it.duzenlenenCezaId != null) Ekran.RUNDE_DETAY else Ekran.OYUN_DETAY
                                 },
                                 onSatiraEkle = {
-                                    it.toCezaKaydi()?.let { kayit ->
-                                        val mevcutListe = cezaKayitlari[it.turNo]?.toMutableList() ?: mutableListOf()
-                                        mevcutListe.add(kayit)
-                                        cezaKayitlari[it.turNo] = mevcutListe
-                                    }
+                                    kaydetVeyaGuncelleCeza(it, cezaKayitlari)
+                                    duzenlenenCezaKaydi = null
                                     cezaUiState = it.sifirlanmisKopya()
                                 }
                             )
@@ -208,7 +208,31 @@ class MainActivity : ComponentActivity() {
                                 onGeriClick = { aktifEkran = Ekran.OYUN_DETAY },
                                 onAyarlarClick = {},
                                 onErgebnisClick = {},
-                                onCezaClick = {}
+                                onCezaClick = { ceza ->
+                                    duzenlenenCezaKaydi = ceza
+                                    cezaUiState = ceza.toCezaEkraniUiState(
+                                        mod = aktifOyunOzeti?.mod ?: "ortak",
+                                        hedefOyuncular = listOf(
+                                            CezaOyuncuSecimi(
+                                                oyuncuAdi = aktifOyunOzeti?.oyuncu1Adi ?: "P1",
+                                                takimRengiArgb = 0xFF81D4FAL
+                                            ),
+                                            CezaOyuncuSecimi(
+                                                oyuncuAdi = aktifOyunOzeti?.oyuncu2Adi ?: "P2",
+                                                takimRengiArgb = 0xFFC62828L
+                                            ),
+                                            CezaOyuncuSecimi(
+                                                oyuncuAdi = aktifOyunOzeti?.oyuncu3Adi ?: "P3",
+                                                takimRengiArgb = 0xFF81D4FAL
+                                            ),
+                                            CezaOyuncuSecimi(
+                                                oyuncuAdi = aktifOyunOzeti?.oyuncu4Adi ?: "P4",
+                                                takimRengiArgb = 0xFFC62828L
+                                            )
+                                        )
+                                    )
+                                    aktifEkran = Ekran.CEZA
+                                }
                             )
                         }
                     }
@@ -218,19 +242,64 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private fun CezaEkraniUiState.toCezaKaydi(): CezaKaydi? {
+private fun kaydetVeyaGuncelleCeza(
+    uiState: CezaEkraniUiState,
+    cezaKayitlari: MutableMap<Int, MutableList<CezaKaydi>>
+) {
+    val mevcutListe = cezaKayitlari[uiState.turNo]?.toMutableList() ?: mutableListOf()
+    val yeniId = uiState.duzenlenenCezaId ?: ((cezaKayitlari.values.flatten().maxOfOrNull { it.id } ?: 0) + 1)
+    val kayit = uiState.toCezaKaydi(yeniId) ?: return
+
+    val mevcutIndex = mevcutListe.indexOfFirst { it.id == kayit.id }
+    if (mevcutIndex >= 0) {
+        mevcutListe[mevcutIndex] = kayit
+    } else {
+        mevcutListe.add(kayit)
+    }
+
+    cezaKayitlari[uiState.turNo] = mevcutListe
+}
+
+private fun CezaEkraniUiState.toCezaKaydi(id: Int): CezaKaydi? {
     val cezaTipiDegeri = seciliCezaTipi ?: return null
     val kirmiziOyuncu = hedefOyuncular.firstOrNull { it.secimRolu == CezaSecimRolu.KIRMIZI } ?: return null
     val yesilOyuncu = hedefOyuncular.firstOrNull { it.secimRolu == CezaSecimRolu.YESIL }
 
     return CezaKaydi(
+        id = id,
         turNo = turNo,
         cezaTipi = cezaTipiDegeri,
         puan = puanText.toIntOrNull() ?: 0,
+        kirmiziOyuncuId = kirmiziOyuncu.oyuncuId,
         kirmiziOyuncuAdi = kirmiziOyuncu.oyuncuAdi,
         kirmiziTakimRengiArgb = kirmiziOyuncu.takimRengiArgb,
+        yesilOyuncuId = yesilOyuncu?.oyuncuId,
         yesilOyuncuAdi = yesilOyuncu?.oyuncuAdi,
         yesilTakimRengiArgb = yesilOyuncu?.takimRengiArgb
+    )
+}
+
+private fun CezaKaydi.toCezaEkraniUiState(
+    mod: String,
+    hedefOyuncular: List<CezaOyuncuSecimi>
+): CezaEkraniUiState {
+    val yeniOyuncular = hedefOyuncular.map { oyuncu ->
+        when (oyuncu.oyuncuAdi) {
+            kirmiziOyuncuAdi -> oyuncu.copy(secimRolu = CezaSecimRolu.KIRMIZI)
+            yesilOyuncuAdi -> oyuncu.copy(secimRolu = CezaSecimRolu.YESIL)
+            else -> oyuncu.copy(secimRolu = CezaSecimRolu.YOK)
+        }
+    }
+
+    return CezaEkraniUiState(
+        turNo = turNo,
+        mod = mod,
+        duzenlenenCezaId = id,
+        seciliCezaTipi = cezaTipi,
+        hedefOyuncular = yeniOyuncular,
+        puanText = puan.toString(),
+        tasDegeriText = if (cezaTipi == CezaTipi.TAS_CEKILDI && puan % 10 == 0) (puan / 10).toString() else "",
+        digerDegerText = if (cezaTipi == CezaTipi.DIGER) puan.toString() else ""
     )
 }
 
@@ -238,6 +307,7 @@ private fun CezaEkraniUiState.sifirlanmisKopya(): CezaEkraniUiState {
     return CezaEkraniUiState(
         turNo = turNo,
         mod = mod,
+        duzenlenenCezaId = null,
         hedefOyuncular = hedefOyuncular.map { it.copy(secimRolu = CezaSecimRolu.YOK) }
     )
 }

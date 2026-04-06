@@ -32,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -62,8 +63,8 @@ fun OyunDetayEkrani(
     rundenListe: SnapshotStateList<Int>,
     aktifTurNo: Int?,
     onAktifTurNoChange: (Int?) -> Unit,
-    ortakTurSonuclari: Map<Int, Pair<Int, Int>>,
-    cezaKayitlari: Map<Int, List<CezaKaydi>>
+    ortakTurSonuclari: MutableMap<Int, Pair<Int, Int>>,
+    cezaKayitlari: MutableMap<Int, MutableList<CezaKaydi>>
 ) {
     val context = LocalContext.current
     val database = remember { DatabaseProvider.getDatabase(context) }
@@ -92,6 +93,11 @@ fun OyunDetayEkrani(
         if (silinenIndex == -1) return
 
         rundenListe.removeAt(silinenIndex)
+        ortakTurSonuclari.remove(turNo)
+        cezaKayitlari.remove(turNo)
+
+        hesaplananToplamlar = null
+        oyunBitirildi = false
 
         onAktifTurNoChange(
             when {
@@ -435,8 +441,8 @@ private fun OrtakRundeTablosu(
     modifier: Modifier = Modifier,
     onSilinecekTurNoChange: (Int?) -> Unit,
     onRundenDetayClick: (Int) -> Unit,
-    ortakTurSonuclari: Map<Int, Pair<Int, Int>>,
-    cezaKayitlari: Map<Int, List<CezaKaydi>>
+    ortakTurSonuclari: MutableMap<Int, Pair<Int, Int>>,
+    cezaKayitlari: MutableMap<Int, MutableList<CezaKaydi>>
 ) {
     Column(
         modifier = modifier.fillMaxWidth()
@@ -916,36 +922,46 @@ private fun OyunDetayEkraniPreview() {
             rundenListe = remember { mutableStateListOf(3, 2, 1) },
             aktifTurNo = 3,
             onAktifTurNoChange = {},
-            ortakTurSonuclari = mapOf(2 to (120 to 240), 1 to (-101 to 404)),
-            cezaKayitlari = mapOf(
-                3 to listOf(
-                    CezaKaydi(
-                        turNo = 3,
-                        cezaTipi = CezaTipi.TAS_CEKILDI,
-                        puan = 50,
-                        kirmiziOyuncuAdi = "Eren",
-                        kirmiziTakimRengiArgb = 0xFF81D4FAL,
-                        yesilOyuncuAdi = "Semir",
-                        yesilTakimRengiArgb = 0xFFC62828L
+            ortakTurSonuclari = remember {
+                mutableStateMapOf(
+                    2 to (120 to 240),
+                    1 to (-101 to 404)
+                )
+            },
+            cezaKayitlari = remember {
+                mutableStateMapOf(
+                    3 to mutableStateListOf(
+                        CezaKaydi(
+                            id = 1,
+                            turNo = 3,
+                            cezaTipi = CezaTipi.TAS_CEKILDI,
+                            puan = 50,
+                            kirmiziOyuncuAdi = "Eren",
+                            kirmiziTakimRengiArgb = 0xFF81D4FAL,
+                            yesilOyuncuAdi = "Semir",
+                            yesilTakimRengiArgb = 0xFFC62828L
+                        ),
+                        CezaKaydi(
+                            id = 2,
+                            turNo = 3,
+                            cezaTipi = CezaTipi.OKEY_ATTI,
+                            puan = 101,
+                            kirmiziOyuncuAdi = "Semir",
+                            kirmiziTakimRengiArgb = 0xFFC62828L
+                        )
                     ),
-                    CezaKaydi(
-                        turNo = 3,
-                        cezaTipi = CezaTipi.OKEY_ATTI,
-                        puan = 101,
-                        kirmiziOyuncuAdi = "Semir",
-                        kirmiziTakimRengiArgb = 0xFFC62828L
-                    )
-                ),
-                2 to listOf(
-                    CezaKaydi(
-                        turNo = 2,
-                        cezaTipi = CezaTipi.ISLEK_ATTI,
-                        puan = 101,
-                        kirmiziOyuncuAdi = "Eray",
-                        kirmiziTakimRengiArgb = 0xFFC62828L
+                    2 to mutableStateListOf(
+                        CezaKaydi(
+                            id = 3,
+                            turNo = 2,
+                            cezaTipi = CezaTipi.ISLEK_ATTI,
+                            puan = 101,
+                            kirmiziOyuncuAdi = "Eray",
+                            kirmiziTakimRengiArgb = 0xFFC62828L
+                        )
                     )
                 )
-            )
+            }
         )
     }
 }
