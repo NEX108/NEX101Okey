@@ -41,7 +41,8 @@ fun AnaSayfa(
     oyunDevamEdiyor: Boolean,
     onYeniOyunClick: () -> Unit,
     onOyuncuYonetClick: () -> Unit,
-    onOyunuFortsetzenClick: () -> Unit
+    onOyunuFortsetzenClick: () -> Unit,
+    onVorherigeSpieleClick: () -> Unit
 ) {
     Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
         Column(
@@ -62,7 +63,8 @@ fun AnaSayfa(
                 oyunDevamEdiyor = oyunDevamEdiyor,
                 onYeniOyunClick = onYeniOyunClick,
                 onOyuncuYonetClick = onOyuncuYonetClick,
-                onOyunuFortsetzenClick = onOyunuFortsetzenClick
+                onOyunuFortsetzenClick = onOyunuFortsetzenClick,
+                onVorherigeSpieleClick = onVorherigeSpieleClick
             )
         }
     }
@@ -122,7 +124,8 @@ private fun AltMenu(
     oyunDevamEdiyor: Boolean,
     onYeniOyunClick: () -> Unit,
     onOyuncuYonetClick: () -> Unit,
-    onOyunuFortsetzenClick: () -> Unit
+    onOyunuFortsetzenClick: () -> Unit,
+    onVorherigeSpieleClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -137,7 +140,7 @@ private fun AltMenu(
         ) {
             AnaMenuButonu(text = "Spieler verwalten", onClick = onOyuncuYonetClick)
             AnaMenuButonu(text = "Statistiken", onClick = { })
-            AnaMenuButonu(text = "Vorherige Spiele", onClick = { })
+            AnaMenuButonu(text = "Vorherige Spiele", onClick = onVorherigeSpieleClick)
         }
 
         if (oyunDevamEdiyor) {
@@ -230,7 +233,8 @@ fun AnaSayfaPreview() {
                 oyunDevamEdiyor = true,
                 onYeniOyunClick = {},
                 onOyuncuYonetClick = {},
-                onOyunuFortsetzenClick = {}
+                onOyunuFortsetzenClick = {},
+                onVorherigeSpieleClick = {}
             )
         }
     }
@@ -249,7 +253,8 @@ private fun AnaSayfaOhneAktivesSpielPreview() {
                 oyunDevamEdiyor = false,
                 onYeniOyunClick = {},
                 onOyuncuYonetClick = {},
-                onOyunuFortsetzenClick = {}
+                onOyunuFortsetzenClick = {},
+                onVorherigeSpieleClick = {}
             )
         }
     }

@@ -60,6 +60,8 @@ fun OyunDetayEkrani(
     onRundeBeendenClick: (Int) -> Unit = {},
     onCezaClick: (Int) -> Unit = {},
     onRundenDetayClick: (Int) -> Unit = {},
+    onOyunBitirildiClick: () -> Unit = {},
+    onTurSilClick: (Int) -> Unit = {},
     rundenListe: SnapshotStateList<Int>,
     aktifTurNo: Int?,
     onAktifTurNoChange: (Int?) -> Unit,
@@ -87,29 +89,6 @@ fun OyunDetayEkrani(
     var silinecekTurNo by remember { mutableStateOf<Int?>(null) }
     var hesaplananToplamlar by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     var oyunBitirildi by remember { mutableStateOf(false) }
-
-    fun turSil(turNo: Int) {
-        val silinenIndex = rundenListe.indexOf(turNo)
-        if (silinenIndex == -1) return
-
-        rundenListe.removeAt(silinenIndex)
-        ortakTurSonuclari.remove(turNo)
-        cezaKayitlari.remove(turNo)
-
-        hesaplananToplamlar = null
-        oyunBitirildi = false
-
-        onAktifTurNoChange(
-            when {
-                aktifTurNo == null -> null
-                aktifTurNo == turNo -> null
-                else -> {
-                    val yeniAktifIndex = rundenListe.indexOfFirst { it == aktifTurNo }
-                    if (yeniAktifIndex == -1) aktifTurNo else rundenListe[yeniAktifIndex]
-                }
-            }
-        )
-    }
 
     fun gosterilenTurNo(turNo: Int): Int {
         val index = rundenListe.indexOf(turNo)
@@ -237,11 +216,11 @@ fun OyunDetayEkrani(
                         solUstText = if (aktifTurNo == null) "Neue Runde" else "Runde beenden",
                         sagUstText = "Strafe / Ceza",
                         solAltText = "Spiel beenden",
-                        sagAltText = "Berechnen",
+                        sagAltText = if (oyunBitirildi) "AnaSayfaya Dön" else "Berechnen",
                         solUstAktif = !oyunBitirildi,
                         sagUstAktif = aktifTurNo != null && !oyunBitirildi,
                         solAltAktif = !oyunBitirildi,
-                        sagAltAktif = !oyunBitirildi,
+                        sagAltAktif = true,
                         onSolUstClick = {
                             if (aktifTurNo == null) {
                                 val yeniTurNo = (rundenListe.maxOrNull() ?: 0) + 1
@@ -259,7 +238,11 @@ fun OyunDetayEkrani(
                             oyunBitirildi = true
                         },
                         onSagAltClick = {
-                            hesaplananToplamlar = takimToplamlariniHesapla()
+                            if (oyunBitirildi) {
+                                onOyunBitirildiClick()
+                            } else {
+                                hesaplananToplamlar = takimToplamlariniHesapla()
+                            }
                         }
                     )
                 }
@@ -300,11 +283,11 @@ fun OyunDetayEkrani(
                         solUstText = if (aktifTurNo == null) "Neue Runde" else "Runde beenden",
                         sagUstText = "Strafe / Ceza",
                         solAltText = "Spiel beenden",
-                        sagAltText = "Berechnen",
+                        sagAltText = if (oyunBitirildi) "AnaSayfaya Dön" else "Berechnen",
                         solUstAktif = !oyunBitirildi,
                         sagUstAktif = aktifTurNo != null && !oyunBitirildi,
                         solAltAktif = !oyunBitirildi,
-                        sagAltAktif = !oyunBitirildi,
+                        sagAltAktif = true,
                         onSolUstClick = {
                             if (aktifTurNo == null) {
                                 val yeniTurNo = (rundenListe.maxOrNull() ?: 0) + 1
@@ -322,7 +305,11 @@ fun OyunDetayEkrani(
                             oyunBitirildi = true
                         },
                         onSagAltClick = {
-                            hesaplananToplamlar = takimToplamlariniHesapla()
+                            if (oyunBitirildi) {
+                                onOyunBitirildiClick()
+                            } else {
+                                hesaplananToplamlar = takimToplamlariniHesapla()
+                            }
                         }
                     )
                 }
@@ -347,7 +334,7 @@ fun OyunDetayEkrani(
                     confirmButton = {
                         TextButton(
                             onClick = {
-                                turSil(turNo)
+                                onTurSilClick(turNo)
                                 silinecekTurNo = null
                             }
                         ) {
@@ -911,6 +898,10 @@ private fun OyunDetayEkraniPreview() {
                 baslangicZamani = System.currentTimeMillis(),
                 takim1Adi = "Mühendis",
                 takim2Adi = "Gay",
+                oyuncu1Id = 1,
+                oyuncu2Id = 2,
+                oyuncu3Id = 3,
+                oyuncu4Id = 4,
                 oyuncu1Adi = "Eren",
                 oyuncu2Adi = "Semir",
                 oyuncu3Adi = "Erol",
@@ -919,6 +910,8 @@ private fun OyunDetayEkraniPreview() {
             onGeriClick = {},
             onCezaClick = {},
             onRundenDetayClick = {},
+            onOyunBitirildiClick = {},
+            onTurSilClick = {},
             rundenListe = remember { mutableStateListOf(3, 2, 1) },
             aktifTurNo = 3,
             onAktifTurNoChange = {},

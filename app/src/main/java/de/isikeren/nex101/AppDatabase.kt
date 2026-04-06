@@ -10,9 +10,9 @@ import androidx.room.RoomDatabase
         OyunKatilimciEntity::class,
         TurEntity::class,
         CezaEntity::class,
-        TurSonucEntity::class
+        TurOyuncuSonucEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 
@@ -20,4 +20,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun oyuncuDao(): OyuncuDao
     abstract fun oyunDao(): OyunDao
     abstract fun oyunKatilimciDao(): OyunKatilimciDao
+    abstract fun turDao(): TurDao
+    abstract fun cezaDao(): CezaDao
+    abstract fun turOyuncuSonucDao(): TurOyuncuSonucDao
 }

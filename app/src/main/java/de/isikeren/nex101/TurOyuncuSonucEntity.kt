@@ -1,3 +1,4 @@
+
 package de.isikeren.nex101
 
 import androidx.room.Entity
@@ -6,7 +7,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(
-    tableName = "cezalar",
+    tableName = "tur_oyuncu_sonuclari",
     foreignKeys = [
         ForeignKey(
             entity = TurEntity::class,
@@ -17,30 +18,30 @@ import androidx.room.PrimaryKey
         ForeignKey(
             entity = OyuncuEntity::class,
             parentColumns = ["id"],
-            childColumns = ["kirmiziOyuncuId"],
+            childColumns = ["oyuncuId"],
             onDelete = ForeignKey.CASCADE
-        ),
-        ForeignKey(
-            entity = OyuncuEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["yesilOyuncuId"],
-            onDelete = ForeignKey.SET_NULL
         )
     ],
     indices = [
         Index(value = ["turId"]),
-        Index(value = ["kirmiziOyuncuId"]),
-        Index(value = ["yesilOyuncuId"])
+        Index(value = ["oyuncuId"]),
+        Index(value = ["turId", "oyuncuId"], unique = true)
     ]
 )
-data class CezaEntity(
+data class TurOyuncuSonucEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
     val turId: Int,
-    val cezaTipi: String, // islek_atti, tas_cekildi, acamadi_ceza, okey_atti, okey_elde_patladi, okey_caldirdi, diger
-    val puan: Int,
-    val kirmiziOyuncuId: Int,
-    val yesilOyuncuId: Int? = null,
-    val tasDegeri: Int? = null,
-    val siraNo: Int
+    val oyuncuId: Int,
+    val pozisyon: Int, // 1..4
+    val takimNo: Int? = null, // tek = null, ortak = 1 oder 2
+    val girilenDeger: Int,
+    val sonucPuani: Int,
+    val multiplikator: Int,
+    val cift: Boolean = false,
+    val bitti: Boolean = false,
+    val okeyle: Boolean = false,
+    val eldenBitti: Boolean = false,
+    val acamadi: Boolean = false
 )
+

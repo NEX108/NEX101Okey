@@ -12,4 +12,7 @@ interface OyunKatilimciDao {
 
     @Query("SELECT * FROM oyun_katilimcilari WHERE oyunId = :oyunId ORDER BY pozisyon ASC")
     suspend fun oyununKatilimcilariniGetir(oyunId: Int): List<OyunKatilimciEntity>
+
+    @Query("DELETE FROM oyun_katilimcilari WHERE oyunId = :oyunId")
+    suspend fun oyununKatilimcilariniSil(oyunId: Int)
 }
