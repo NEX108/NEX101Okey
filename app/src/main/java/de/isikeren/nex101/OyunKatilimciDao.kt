@@ -26,4 +26,7 @@ interface OyunKatilimciDao {
         """
     )
     suspend fun oyuncununOyunSayisiniGetir(oyuncuId: Int): Int
+
+    @Query("UPDATE oyun_katilimcilari SET takimAdi = :takimAdi WHERE oyunId = :oyunId AND takimNo = :takimNo")
+    suspend fun takimAdiniGuncelle(oyunId: Int, takimNo: Int, takimAdi: String)
 }

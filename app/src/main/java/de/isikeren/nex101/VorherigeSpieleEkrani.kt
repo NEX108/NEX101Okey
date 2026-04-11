@@ -1,7 +1,10 @@
 package de.isikeren.nex101
 
 import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,12 +18,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -31,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import de.isikeren.nex101.ui.theme.NEX101Theme
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.LinkedHashSet
 import java.util.Locale
 
 data class VorherigesSpielListeItem(
@@ -51,6 +60,11 @@ fun VorherigeSpieleEkrani(
     val oyunDao = remember { database.oyunDao() }
     val oyunKatilimciDao = remember { database.oyunKatilimciDao() }
     val oyuncuDao = remember { database.oyuncuDao() }
+
+    val prefs = remember {
+        context.getSharedPreferences("vorherige_spiele_prefs", android.content.Context.MODE_PRIVATE)
+    }
+    val korunanOyunAnahtari = "korunan_oyunlar"
 
     val bitenOyunlar by oyunDao.bitenOyunlariGetirFlow().collectAsState(initial = emptyList())
     val tumOyuncular by oyuncuDao.tumOyunculariGetir().collectAsState(initial = emptyList())
@@ -82,6 +96,15 @@ fun VorherigeSpieleEkrani(
                 },
                 oyuncuText = oyuncuAdlari.joinToString(", ")
             )
+        }
+    }
+    var silinecekOyunId by remember { mutableStateOf<Int?>(null) }
+    val seciliOyunlar = remember {
+        mutableStateListOf<Int>().apply {
+            val kayitliIdler = prefs.getStringSet(korunanOyunAnahtari, emptySet())
+                .orEmpty()
+                .mapNotNull { it.toIntOrNull() }
+            addAll(kayitliIdler)
         }
     }
 
@@ -128,31 +151,90 @@ fun VorherigeSpieleEkrani(
                     items(oncekiOyunlar) { oyun ->
                         VorherigesSpielSatiri(
                             item = oyun,
+                            secili = seciliOyunlar.contains(oyun.oyunId),
                             onClick = { onOyunClick(oyun.oyunId) },
-                            onSilClick = { onOyunSilClick(oyun.oyunId) }
+                            onLongClick = {
+                                if (seciliOyunlar.contains(oyun.oyunId)) {
+                                    seciliOyunlar.remove(oyun.oyunId)
+                                } else {
+                                    seciliOyunlar.add(oyun.oyunId)
+                                }
+                                prefs.edit()
+                                    .putStringSet(
+                                        korunanOyunAnahtari,
+                                        LinkedHashSet(seciliOyunlar.map { it.toString() })
+                                    )
+                                    .apply()
+                            },
+                            onSilClick = { silinecekOyunId = oyun.oyunId }
                         )
                     }
                 }
+            }
+            silinecekOyunId?.let { oyunId ->
+                AlertDialog(
+                    onDismissRequest = { silinecekOyunId = null },
+                    title = { Text("Spiel löschen") },
+                    text = {
+                        Text(
+                            "Soll dieses Spiel wirklich gelöscht werden?\nDamit werden die Spiele aus der Statistik gelöscht"
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                onOyunSilClick(oyunId)
+                                seciliOyunlar.remove(oyunId)
+                                prefs.edit()
+                                    .putStringSet(
+                                        korunanOyunAnahtari,
+                                        LinkedHashSet(seciliOyunlar.map { it.toString() })
+                                    )
+                                    .apply()
+                                silinecekOyunId = null
+                            }
+                        ) {
+                            Text("Löschen")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = { silinecekOyunId = null }
+                        ) {
+                            Text("Abbrechen")
+                        }
+                    }
+                )
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun VorherigesSpielSatiri(
     item: VorherigesSpielListeItem,
+    secili: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     onSilClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .border(
-                width = 2.dp,
-                color = MaterialTheme.colorScheme.primary,
+            .background(
+                color = if (secili) androidx.compose.ui.graphics.Color(0x332E7D32) else MaterialTheme.colorScheme.background,
                 shape = MaterialTheme.shapes.medium
             )
-            .clickable(onClick = onClick)
+            .border(
+                width = 2.dp,
+                color = if (secili) androidx.compose.ui.graphics.Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary,
+                shape = MaterialTheme.shapes.medium
+            )
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(14.dp)
     ) {
         Row(
@@ -164,7 +246,7 @@ private fun VorherigesSpielSatiri(
                 text = item.tarihText,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary
+                color = if (secili) androidx.compose.ui.graphics.Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary
             )
             Text(
                 text = item.saatText,
@@ -184,12 +266,21 @@ private fun VorherigesSpielSatiri(
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f)
             )
-            Text(
-                text = "Löschen",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.clickable(onClick = onSilClick)
-            )
+            if (secili) {
+                Text(
+                    text = "Geschützt",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = androidx.compose.ui.graphics.Color(0xFF2E7D32),
+                    fontWeight = FontWeight.SemiBold
+                )
+            } else {
+                Text(
+                    text = "Löschen",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.clickable(onClick = onSilClick)
+                )
+            }
         }
     }
 }
@@ -224,7 +315,9 @@ private fun VorherigeSpieleEkraniPreview() {
                     saatText = "19:45",
                     oyuncuText = "Eren, Semir, Erol, Eray"
                 ),
+                secili = false,
                 onClick = {},
+                onLongClick = {},
                 onSilClick = {}
             )
 
@@ -235,7 +328,9 @@ private fun VorherigeSpieleEkraniPreview() {
                     saatText = "21:10",
                     oyuncuText = "Eren, Semir, Erol, Eray"
                 ),
+                secili = true,
                 onClick = {},
+                onLongClick = {},
                 onSilClick = {}
             )
         }

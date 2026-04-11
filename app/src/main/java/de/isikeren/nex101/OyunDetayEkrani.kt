@@ -29,6 +29,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateListOf
@@ -62,6 +64,7 @@ fun OyunDetayEkrani(
     onRundenDetayClick: (Int) -> Unit = {},
     onOyunBitirildiClick: () -> Unit = {},
     onTurSilClick: (Int) -> Unit = {},
+    onTakimAdlariDegisti: (String, String) -> Unit = { _, _ -> },
     rundenListe: SnapshotStateList<Int>,
     aktifTurNo: Int?,
     onAktifTurNoChange: (Int?) -> Unit,
@@ -89,6 +92,10 @@ fun OyunDetayEkrani(
     var silinecekTurNo by remember { mutableStateOf<Int?>(null) }
     var hesaplananToplamlar by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     var oyunBitirildi by remember { mutableStateOf(false) }
+    var takimAdiDialogAcik by remember { mutableStateOf(false) }
+    var takim1AdiTaslak by remember { mutableStateOf("") }
+    var takim2AdiTaslak by remember { mutableStateOf("") }
+    var oyunBitirmeDialogAcik by remember { mutableStateOf(false) }
 
     fun gosterilenTurNo(turNo: Int): Int {
         val index = rundenListe.indexOf(turNo)
@@ -126,11 +133,11 @@ fun OyunDetayEkrani(
     val oyuncu3 = tumOyuncular.firstOrNull { it.id == pozisyon3?.oyuncuId }
     val oyuncu4 = tumOyuncular.firstOrNull { it.id == pozisyon4?.oyuncuId }
 
-    val takim1Adi = katilimcilar.firstOrNull { it.takimNo == 1 }?.takimAdi
-        ?: baslangicOzeti?.takim1Adi
+    val takim1Adi = baslangicOzeti?.takim1Adi
+        ?: katilimcilar.firstOrNull { it.takimNo == 1 }?.takimAdi
         ?: "Team 1"
-    val takim2Adi = katilimcilar.firstOrNull { it.takimNo == 2 }?.takimAdi
-        ?: baslangicOzeti?.takim2Adi
+    val takim2Adi = baslangicOzeti?.takim2Adi
+        ?: katilimcilar.firstOrNull { it.takimNo == 2 }?.takimAdi
         ?: "Team 2"
 
     val oyuncu1Adi = oyuncu1?.ad ?: baslangicOzeti?.oyuncu1Adi ?: "-"
@@ -191,6 +198,11 @@ fun OyunDetayEkrani(
                         modifier = Modifier.weight(1f),
                         onSilinecekTurNoChange = { silinecekTurNo = it },
                         onRundenDetayClick = onRundenDetayClick,
+                        onBaslikLongClick = {
+                            takim1AdiTaslak = takim1Adi
+                            takim2AdiTaslak = takim2Adi
+                            takimAdiDialogAcik = true
+                        },
                         ortakTurSonuclari = ortakTurSonuclari,
                         cezaKayitlari = cezaKayitlari
                     )
@@ -234,8 +246,7 @@ fun OyunDetayEkrani(
                             aktifTurNo?.let { onCezaClick(it) }
                         },
                         onSolAltClick = {
-                            hesaplananToplamlar = takimToplamlariniHesapla()
-                            oyunBitirildi = true
+                            oyunBitirmeDialogAcik = true
                         },
                         onSagAltClick = {
                             if (oyunBitirildi) {
@@ -301,8 +312,7 @@ fun OyunDetayEkrani(
                             aktifTurNo?.let { onCezaClick(it) }
                         },
                         onSolAltClick = {
-                            hesaplananToplamlar = takimToplamlariniHesapla()
-                            oyunBitirildi = true
+                            oyunBitirmeDialogAcik = true
                         },
                         onSagAltClick = {
                             if (oyunBitirildi) {
@@ -324,6 +334,72 @@ fun OyunDetayEkrani(
                         Text("Spiel wird geladen...")
                     }
                 }
+            }
+
+            if (oyunBitirmeDialogAcik) {
+                AlertDialog(
+                    onDismissRequest = { oyunBitirmeDialogAcik = false },
+                    title = { Text("Spiel beenden") },
+                    text = { Text("Spiel wirklich beenden?") },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                hesaplananToplamlar = takimToplamlariniHesapla()
+                                oyunBitirildi = true
+                                oyunBitirmeDialogAcik = false
+                            }
+                        ) {
+                            Text("Ja")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { oyunBitirmeDialogAcik = false }) {
+                            Text("Abbrechen")
+                        }
+                    }
+                )
+            }
+
+            if (takimAdiDialogAcik) {
+                AlertDialog(
+                    onDismissRequest = { takimAdiDialogAcik = false },
+                    title = { Text("Teamnamen ändern") },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            OutlinedTextField(
+                                value = takim1AdiTaslak,
+                                onValueChange = { takim1AdiTaslak = it },
+                                label = { Text("Team 1") },
+                                singleLine = true,
+                                colors = TextFieldDefaults.colors()
+                            )
+                            OutlinedTextField(
+                                value = takim2AdiTaslak,
+                                onValueChange = { takim2AdiTaslak = it },
+                                label = { Text("Team 2") },
+                                singleLine = true,
+                                colors = TextFieldDefaults.colors()
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                val yeniTakim1 = takim1AdiTaslak.trim().ifBlank { takim1Adi }
+                                val yeniTakim2 = takim2AdiTaslak.trim().ifBlank { takim2Adi }
+                                onTakimAdlariDegisti(yeniTakim1, yeniTakim2)
+                                takimAdiDialogAcik = false
+                            }
+                        ) {
+                            Text("Speichern")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { takimAdiDialogAcik = false }) {
+                            Text("Abbrechen")
+                        }
+                    }
+                )
             }
 
             silinecekTurNo?.let { turNo ->
@@ -417,6 +493,7 @@ private fun BilgiSatiri(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun OrtakRundeTablosu(
     takim1Adi: String,
@@ -428,6 +505,7 @@ private fun OrtakRundeTablosu(
     modifier: Modifier = Modifier,
     onSilinecekTurNoChange: (Int?) -> Unit,
     onRundenDetayClick: (Int) -> Unit,
+    onBaslikLongClick: () -> Unit = {},
     ortakTurSonuclari: MutableMap<Int, Pair<Int, Int>>,
     cezaKayitlari: MutableMap<Int, MutableList<CezaKaydi>>
 ) {
@@ -443,6 +521,10 @@ private fun OrtakRundeTablosu(
                     shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
                 )
                 .background(MaterialTheme.colorScheme.surfaceVariant)
+                .combinedClickable(
+                    onClick = {},
+                    onLongClick = onBaslikLongClick
+                )
                 .padding(vertical = 10.dp, horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {

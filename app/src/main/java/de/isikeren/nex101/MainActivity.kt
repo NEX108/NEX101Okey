@@ -5,6 +5,30 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -19,6 +43,7 @@ import androidx.compose.runtime.setValue
 import de.isikeren.nex101.ui.theme.NEX101Theme
 
 private enum class Ekran {
+    NEX_INTRO,
     ANA_SAYFA,
     YENI_OYUN,
     OYUNCU_YONETIM,
@@ -41,7 +66,7 @@ class MainActivity : ComponentActivity() {
             NEX101Theme {
                 val db = remember { DatabaseProvider.getDatabase(applicationContext) }
                 val coroutineScope = rememberCoroutineScope()
-                var aktifEkran by rememberSaveable { mutableStateOf(Ekran.ANA_SAYFA) }
+                var aktifEkran by rememberSaveable { mutableStateOf(Ekran.NEX_INTRO) }
                 var aktifOyunId by rememberSaveable { mutableStateOf<Int?>(null) }
                 var aktifOyunOzeti by remember { mutableStateOf<OyunBaslangicOzeti?>(null) }
                 var rundeBeendenUiState by remember { mutableStateOf<RundeBeendenUiState?>(null) }
@@ -57,6 +82,10 @@ class MainActivity : ComponentActivity() {
                 var yeniOyunTaslagi by remember { mutableStateOf(YeniOyunTaslakDurumu()) }
 
                 when (aktifEkran) {
+                    Ekran.NEX_INTRO -> NexIntroScreenAnimated(
+                        onFinished = { aktifEkran = Ekran.ANA_SAYFA }
+                    )
+
                     Ekran.ANA_SAYFA -> AnaSayfa(
                         oyunDevamEdiyor = aktifOyunId != null,
                         onYeniOyunClick = { aktifEkran = Ekran.YENI_OYUN },
@@ -209,6 +238,30 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         },
+                        onTakimAdlariDegisti = { yeniTakim1, yeniTakim2 ->
+                            aktifOyunOzeti = aktifOyunOzeti?.copy(
+                                takim1Adi = yeniTakim1,
+                                takim2Adi = yeniTakim2
+                            )
+
+                            val oyunId = aktifOyunId
+                            if (oyunId != null) {
+                                coroutineScope.launch {
+                                    withContext(Dispatchers.IO) {
+                                        db.oyunKatilimciDao().takimAdiniGuncelle(
+                                            oyunId = oyunId,
+                                            takimNo = 1,
+                                            takimAdi = yeniTakim1
+                                        )
+                                        db.oyunKatilimciDao().takimAdiniGuncelle(
+                                            oyunId = oyunId,
+                                            takimNo = 2,
+                                            takimAdi = yeniTakim2
+                                        )
+                                    }
+                                }
+                            }
+                        },
                         rundenListe = aktifRundenListe,
                         aktifTurNo = aktifTurNoDurumu,
                         onAktifTurNoChange = { aktifTurNoDurumu = it },
@@ -252,6 +305,11 @@ class MainActivity : ComponentActivity() {
                                                         bitisZamani = kayitZamani
                                                     )
                                                 ).toInt()
+                                            }
+
+                                            val mevcutSonuclar = db.turOyuncuSonucDao().turunOyuncuSonuclariniGetirListe(turId)
+                                            mevcutSonuclar.forEach { sonuc ->
+                                                db.turOyuncuSonucDao().turOyuncuSonucuSil(sonuc)
                                             }
 
                                             db.turOyuncuSonucDao().turOyuncuSonuclariniEkle(
@@ -363,7 +421,43 @@ class MainActivity : ComponentActivity() {
                                 ),
                                 onGeriClick = { aktifEkran = Ekran.OYUN_DETAY },
                                 onAyarlarClick = {},
-                                onErgebnisClick = {},
+                                onErgebnisClick = {
+                                    val oyunId = aktifOyunId ?: return@RundenDetailEkrani
+                                    coroutineScope.launch {
+                                        val duzenlemeUiState = withContext(Dispatchers.IO) {
+                                            val tur = db.turDao().oyunVeTurNoIleTurGetir(oyunId, turNo) ?: return@withContext null
+                                            val sonuclar = db.turOyuncuSonucDao().turunOyuncuSonuclariniGetirListe(tur.id)
+                                            val sonucMap = sonuclar.associateBy { it.pozisyon }
+                                            val mod = aktifOyunOzeti?.mod ?: "ortak"
+
+                                            RundeBeendenUiState(
+                                                turNo = turNo,
+                                                mod = mod,
+                                                oyuncu1 = sonucMap[1].toSpielerRundenEndeUiState(
+                                                    fallbackId = aktifOyunOzeti?.oyuncu1Id,
+                                                    fallbackAd = aktifOyunOzeti?.oyuncu1Adi ?: "P1"
+                                                ),
+                                                oyuncu2 = sonucMap[2].toSpielerRundenEndeUiState(
+                                                    fallbackId = aktifOyunOzeti?.oyuncu2Id,
+                                                    fallbackAd = aktifOyunOzeti?.oyuncu2Adi ?: "P2"
+                                                ),
+                                                oyuncu3 = sonucMap[3].toSpielerRundenEndeUiState(
+                                                    fallbackId = aktifOyunOzeti?.oyuncu3Id,
+                                                    fallbackAd = aktifOyunOzeti?.oyuncu3Adi ?: "P3"
+                                                ),
+                                                oyuncu4 = sonucMap[4].toSpielerRundenEndeUiState(
+                                                    fallbackId = aktifOyunOzeti?.oyuncu4Id,
+                                                    fallbackAd = aktifOyunOzeti?.oyuncu4Adi ?: "P4"
+                                                )
+                                            )
+                                        }
+
+                                        if (duzenlemeUiState != null) {
+                                            rundeBeendenUiState = duzenlemeUiState
+                                            aktifEkran = Ekran.RUNDE_BEENDEN
+                                        }
+                                    }
+                                },
                                 onCezaClick = { ceza ->
                                     duzenlenenCezaKaydi = ceza
                                     cezaUiState = ceza.toCezaEkraniUiState(
@@ -392,6 +486,20 @@ class MainActivity : ComponentActivity() {
                                         )
                                     )
                                     aktifEkran = Ekran.CEZA
+                                },
+                                onCezaSilClick = { ceza ->
+                                    val mevcutListe = cezaKayitlari[turNo]?.toMutableList() ?: mutableListOf()
+                                    mevcutListe.removeAll { it.id == ceza.id }
+                                    cezaKayitlari[turNo] = mevcutListe
+
+                                    coroutineScope.launch {
+                                        withContext(Dispatchers.IO) {
+                                            val silinecekCeza = db.cezaDao().cezaGetir(ceza.id)
+                                            if (silinecekCeza != null) {
+                                                db.cezaDao().cezaSil(silinecekCeza)
+                                            }
+                                        }
+                                    }
                                 }
                             )
                         }
@@ -653,4 +761,95 @@ private fun RundeBeendenUiState.tumOyuncuKimlikleriHazir(): Boolean {
         oyuncu3.spielerId,
         oyuncu4.spielerId
     ).all { it != null && it > 0 }
+}
+
+@Composable
+private fun NexIntroScreenAnimated(
+    onFinished: () -> Unit
+) {
+    val screenWidth = LocalConfiguration.current.screenWidthDp.toFloat()
+    val nexOffsetX = remember { Animatable(-screenWidth) }
+    var showEntertainment by remember { mutableStateOf(false) }
+    var visibleLetters by remember { mutableStateOf(0) }
+
+    val word = "Entertainment"
+
+    LaunchedEffect(Unit) {
+        nexOffsetX.animateTo(
+            targetValue = 0f,
+            animationSpec = tween(
+                durationMillis = 700,
+                easing = FastOutSlowInEasing
+            )
+        )
+
+        kotlinx.coroutines.delay(150)
+        showEntertainment = true
+
+        word.forEachIndexed { index, _ ->
+            visibleLetters = index + 1
+            kotlinx.coroutines.delay(45)
+        }
+
+        kotlinx.coroutines.delay(900)
+        onFinished()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        Color(0xFF0F1115),
+                        Color(0xFF050608)
+                    )
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(horizontal = 24.dp)
+        ) {
+            Text(
+                text = "NEX",
+                color = Color.White,
+                fontSize = 42.sp,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 6.sp,
+                modifier = Modifier.offset(x = nexOffsetX.value.dp)
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            AnimatedVisibility(visible = showEntertainment) {
+                Text(
+                    text = word.take(visibleLetters),
+                    color = Color.White.copy(alpha = 0.88f),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 2.2.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
+// Helper to map TurOyuncuSonucEntity? to SpielerRundenEndeUiState
+private fun TurOyuncuSonucEntity?.toSpielerRundenEndeUiState(
+    fallbackId: Int?,
+    fallbackAd: String
+): SpielerRundenEndeUiState {
+    return SpielerRundenEndeUiState(
+        spielerId = this?.oyuncuId ?: fallbackId,
+        spielerName = fallbackAd,
+        eingabeText = this?.girilenDeger?.toString() ?: "",
+        multiplikatorText = "×${this?.multiplikator ?: 1}",
+        cift = this?.cift ?: false,
+        bitti = this?.bitti ?: false,
+        okeyle = this?.okeyle ?: false,
+        eldenBitti = this?.eldenBitti ?: false,
+        acamadi = this?.acamadi ?: false
+    )
 }

@@ -20,8 +20,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -57,9 +63,12 @@ fun RundenDetailEkrani(
     onGeriClick: () -> Unit,
     onAyarlarClick: () -> Unit,
     onErgebnisClick: () -> Unit,
-    onCezaClick: (CezaKaydi) -> Unit
+    onCezaClick: (CezaKaydi) -> Unit,
+    onCezaSilClick: (CezaKaydi) -> Unit
 ) {
     BackHandler(onBack = onGeriClick)
+
+    var silinecekCeza by remember { mutableStateOf<CezaKaydi?>(null) }
 
     Column(
         modifier = Modifier
@@ -167,7 +176,8 @@ fun RundenDetailEkrani(
                     .filter { it.kirmiziOyuncuAdi == uiState.oyuncu1Adi }
                     .sumOf { it.puan },
                 cezaListesi = uiState.cezaListesi.filter { it.kirmiziOyuncuAdi == uiState.oyuncu1Adi },
-                onCezaClick = onCezaClick
+                onCezaClick = onCezaClick,
+                onCezaSilClick = { silinecekCeza = it }
             )
             OyuncuDetayKolonu(
                 modifier = Modifier.weight(1f),
@@ -176,7 +186,8 @@ fun RundenDetailEkrani(
                     .filter { it.kirmiziOyuncuAdi == uiState.oyuncu2Adi }
                     .sumOf { it.puan },
                 cezaListesi = uiState.cezaListesi.filter { it.kirmiziOyuncuAdi == uiState.oyuncu2Adi },
-                onCezaClick = onCezaClick
+                onCezaClick = onCezaClick,
+                onCezaSilClick = { silinecekCeza = it }
             )
             OyuncuDetayKolonu(
                 modifier = Modifier.weight(1f),
@@ -185,7 +196,8 @@ fun RundenDetailEkrani(
                     .filter { it.kirmiziOyuncuAdi == uiState.oyuncu3Adi }
                     .sumOf { it.puan },
                 cezaListesi = uiState.cezaListesi.filter { it.kirmiziOyuncuAdi == uiState.oyuncu3Adi },
-                onCezaClick = onCezaClick
+                onCezaClick = onCezaClick,
+                onCezaSilClick = { silinecekCeza = it }
             )
             OyuncuDetayKolonu(
                 modifier = Modifier.weight(1f),
@@ -194,7 +206,32 @@ fun RundenDetailEkrani(
                     .filter { it.kirmiziOyuncuAdi == uiState.oyuncu4Adi }
                     .sumOf { it.puan },
                 cezaListesi = uiState.cezaListesi.filter { it.kirmiziOyuncuAdi == uiState.oyuncu4Adi },
-                onCezaClick = onCezaClick
+                onCezaClick = onCezaClick,
+                onCezaSilClick = { silinecekCeza = it }
+            )
+        }
+        silinecekCeza?.let { ceza ->
+            AlertDialog(
+                onDismissRequest = { silinecekCeza = null },
+                title = { Text("Ceza löschen") },
+                text = { Text("Wollen Sie diese Ceza löschen?") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            onCezaSilClick(ceza)
+                            silinecekCeza = null
+                        }
+                    ) {
+                        Text("Löschen")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { silinecekCeza = null }
+                    ) {
+                        Text("Abbrechen")
+                    }
+                }
             )
         }
     }
@@ -300,7 +337,8 @@ private fun OyuncuDetayKolonu(
     oyuncuAdi: String,
     toplamCeza: Int,
     cezaListesi: List<CezaKaydi>,
-    onCezaClick: (CezaKaydi) -> Unit
+    onCezaClick: (CezaKaydi) -> Unit,
+    onCezaSilClick: (CezaKaydi) -> Unit
 ) {
     Column(
         modifier = modifier
@@ -351,7 +389,8 @@ private fun OyuncuDetayKolonu(
                     cezaListesi.forEach { ceza ->
                         CezaDetaySatiri(
                             ceza = ceza,
-                            onClick = { onCezaClick(ceza) }
+                            onClick = { onCezaClick(ceza) },
+                            onLongClick = { onCezaSilClick(ceza) }
                         )
                     }
                 }
@@ -364,7 +403,8 @@ private fun OyuncuDetayKolonu(
 @Composable
 private fun CezaDetaySatiri(
     ceza: CezaKaydi,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -376,7 +416,7 @@ private fun CezaDetaySatiri(
             )
             .combinedClickable(
                 onClick = onClick,
-                onLongClick = onClick
+                onLongClick = onLongClick
             )
             .padding(6.dp)
     ) {
@@ -466,7 +506,8 @@ private fun RundenDetailEkraniPreview() {
                 onGeriClick = {},
                 onAyarlarClick = {},
                 onErgebnisClick = {},
-                onCezaClick = {}
+                onCezaClick = {},
+                onCezaSilClick = {}
             )
         }
     }
