@@ -29,6 +29,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -65,6 +66,7 @@ fun VorherigeSpieleEkrani(
         context.getSharedPreferences("vorherige_spiele_prefs", android.content.Context.MODE_PRIVATE)
     }
     val korunanOyunAnahtari = "korunan_oyunlar"
+    BackHandler(onBack = onGeriClick)
 
     val bitenOyunlar by oyunDao.bitenOyunlariGetirFlow().collectAsState(initial = emptyList())
     val tumOyuncular by oyuncuDao.tumOyunculariGetir().collectAsState(initial = emptyList())

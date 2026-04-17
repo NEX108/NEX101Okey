@@ -1,4 +1,3 @@
-
 package de.isikeren.nex101
 
 import androidx.room.Dao
@@ -54,19 +53,68 @@ interface TurOyuncuSonucDao {
     )
     suspend fun oyuncununOynadigiTurSayisiniGetir(oyuncuId: Int): Int
 
-    @Query("SELECT COUNT(*) FROM tur_oyuncu_sonuclari WHERE oyuncuId = :oyuncuId AND acamadi = 1")
+    @Query(
+        """
+        SELECT COUNT(*)
+        FROM tur_oyuncu_sonuclari tos
+        INNER JOIN turlar t ON t.id = tos.turId
+        INNER JOIN oyunlar o ON o.id = t.oyunId
+        WHERE tos.oyuncuId = :oyuncuId
+          AND tos.acamadi = 1
+          AND o.durum = 'bitti'
+        """
+    )
     suspend fun oyuncununAcamadiSayisiniGetir(oyuncuId: Int): Int
 
-    @Query("SELECT COUNT(*) FROM tur_oyuncu_sonuclari WHERE oyuncuId = :oyuncuId AND cift = 1")
+    @Query(
+        """
+        SELECT COUNT(*)
+        FROM tur_oyuncu_sonuclari tos
+        INNER JOIN turlar t ON t.id = tos.turId
+        INNER JOIN oyunlar o ON o.id = t.oyunId
+        WHERE tos.oyuncuId = :oyuncuId
+          AND tos.cift = 1
+          AND o.durum = 'bitti'
+        """
+    )
     suspend fun oyuncununCiftSayisiniGetir(oyuncuId: Int): Int
 
-    @Query("SELECT COUNT(*) FROM tur_oyuncu_sonuclari WHERE oyuncuId = :oyuncuId AND bitti = 1")
+    @Query(
+        """
+        SELECT COUNT(*)
+        FROM tur_oyuncu_sonuclari tos
+        INNER JOIN turlar t ON t.id = tos.turId
+        INNER JOIN oyunlar o ON o.id = t.oyunId
+        WHERE tos.oyuncuId = :oyuncuId
+          AND tos.bitti = 1
+          AND o.durum = 'bitti'
+        """
+    )
     suspend fun oyuncununBittiSayisiniGetir(oyuncuId: Int): Int
 
-    @Query("SELECT COUNT(*) FROM tur_oyuncu_sonuclari WHERE oyuncuId = :oyuncuId AND okeyle = 1")
+    @Query(
+        """
+        SELECT COUNT(*)
+        FROM tur_oyuncu_sonuclari tos
+        INNER JOIN turlar t ON t.id = tos.turId
+        INNER JOIN oyunlar o ON o.id = t.oyunId
+        WHERE tos.oyuncuId = :oyuncuId
+          AND tos.okeyle = 1
+          AND o.durum = 'bitti'
+        """
+    )
     suspend fun oyuncununOkeyleBitirmeSayisiniGetir(oyuncuId: Int): Int
 
-    @Query("SELECT COUNT(*) FROM tur_oyuncu_sonuclari WHERE oyuncuId = :oyuncuId AND eldenBitti = 1")
+    @Query(
+        """
+        SELECT COUNT(*)
+        FROM tur_oyuncu_sonuclari tos
+        INNER JOIN turlar t ON t.id = tos.turId
+        INNER JOIN oyunlar o ON o.id = t.oyunId
+        WHERE tos.oyuncuId = :oyuncuId
+          AND tos.eldenBitti = 1
+          AND o.durum = 'bitti'
+        """
+    )
     suspend fun oyuncununEldenBitirmeSayisiniGetir(oyuncuId: Int): Int
 }
-

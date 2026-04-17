@@ -1,5 +1,7 @@
 package de.isikeren.nex101
 
+import androidx.activity.compose.BackHandler
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -74,6 +76,8 @@ fun VorherigesRundenDetayEkrani(
     val turDao = remember { database.turDao() }
     val turOyuncuSonucDao = remember { database.turOyuncuSonucDao() }
     val cezaDao = remember { database.cezaDao() }
+
+    BackHandler(enabled = true, onBack = onGeriClick)
 
     val uiState by produceState<VorherigesRundenDetayUiState?>(initialValue = null, key1 = oyunId, key2 = turNo) {
         val katilimcilar = oyunKatilimciDao.oyununKatilimcilariniGetir(oyunId).sortedBy { it.pozisyon }
@@ -169,6 +173,7 @@ fun VorherigesRundenDetayEkrani(
     uiState: VorherigesRundenDetayUiState,
     onGeriClick: () -> Unit
 ) {
+    BackHandler(enabled = true, onBack = onGeriClick)
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
         Column(
             modifier = Modifier

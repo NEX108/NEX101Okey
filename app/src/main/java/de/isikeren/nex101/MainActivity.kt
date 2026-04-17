@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +40,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.first
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import de.isikeren.nex101.ui.theme.NEX101Theme
@@ -54,7 +60,10 @@ private enum class Ekran {
     VORHERIGE_SPIELE,
     VORHERIGES_OYUN_DETAY,
     VORHERIGES_RUNDE_DETAY,
-    STATISTIK
+    STATISTIK,
+    OYUNCU_STATISTIK,
+    OYUNCU_STATISTIK_TUR_LISTE,
+    OYUNCU_STATISTIK_OYUNLAR_LISTE
 }
 
 class MainActivity : ComponentActivity() {
@@ -75,11 +84,14 @@ class MainActivity : ComponentActivity() {
                 var seciliTurDetayNo by remember { mutableStateOf<Int?>(null) }
                 var seciliVorherigesOyunId by remember { mutableStateOf<Int?>(null) }
                 var seciliVorherigeTurNo by remember { mutableStateOf<Int?>(null) }
+                var seciliIstatistikOyuncuId by remember { mutableStateOf<Int?>(null) }
+                var seciliTurFiltreTipi by remember { mutableStateOf<OyuncuTurFiltreTipi?>(null) }
                 val aktifRundenListe = remember { mutableStateListOf<Int>() }
                 var aktifTurNoDurumu by remember { mutableStateOf<Int?>(null) }
                 val ortakTurSonuclari = remember { mutableStateMapOf<Int, Pair<Int, Int>>() }
                 val cezaKayitlari = remember { mutableStateMapOf<Int, MutableList<CezaKaydi>>() }
                 var yeniOyunTaslagi by remember { mutableStateOf(YeniOyunTaslakDurumu()) }
+                val tumOyuncular by db.oyuncuDao().tumOyunculariGetir().collectAsState(initial = emptyList())
 
                 when (aktifEkran) {
                     Ekran.NEX_INTRO -> NexIntroScreenAnimated(
@@ -557,9 +569,318 @@ class MainActivity : ComponentActivity() {
                     Ekran.STATISTIK -> StatistikEkrani(
                         onGeriClick = { aktifEkran = Ekran.ANA_SAYFA },
                         onOyuncuClick = { oyuncuId ->
-                            // Detail-Statistik pro Spieler kommt später.
+                            seciliIstatistikOyuncuId = oyuncuId
+                            aktifEkran = Ekran.OYUNCU_STATISTIK
                         }
                     )
+
+                    Ekran.OYUNCU_STATISTIK -> {
+                        val oyuncuId = seciliIstatistikOyuncuId
+                        if (oyuncuId != null) {
+                            val uiState by produceState<OyuncuStatistikUiState?>(
+                                initialValue = null,
+                                key1 = oyuncuId,
+                                key2 = tumOyuncular
+                            ) {
+                                val oyuncu = tumOyuncular.firstOrNull { it.id == oyuncuId }
+                                if (oyuncu == null) {
+                                    value = null
+                                    return@produceState
+                                }
+
+                                value = withContext(Dispatchers.IO) {
+                                    val oyunSayisi = db.oyunKatilimciDao().oyuncununOyunSayisiniGetir(oyuncuId)
+                                    val turSayisi = db.turOyuncuSonucDao().oyuncununOynadigiTurSayisiniGetir(oyuncuId)
+                                    val turSonuclari = db.turOyuncuSonucDao().oyuncununTumTurSonuclariniGetir(oyuncuId)
+                                    val toplamEndstandPuani = turSonuclari.sumOf { it.sonucPuani }
+                                    val rotCezalar = db.cezaDao().oyuncununVerdigiCezalariGetir(oyuncuId)
+                                    val yesilCezalar = db.cezaDao().oyuncununSebepOlduguCezalariGetir(oyuncuId)
+                                    val acdiSayisi = turSonuclari.count { sonuc ->
+                                        sonuc.girilenDeger != 0 &&
+                                            sonuc.sonucPuani != 0 &&
+                                            !sonuc.bitti &&
+                                            !sonuc.okeyle &&
+                                            !sonuc.eldenBitti &&
+                                            !sonuc.cift &&
+                                            !sonuc.acamadi
+                                    }
+
+                                    OyuncuStatistikUiState(
+                                        oyuncuAdi = oyuncu.ad,
+                                        oyunSayisi = oyunSayisi,
+                                        turSayisi = turSayisi,
+                                        rank = hesaplaOyuncuRanki(
+                                            tumOyuncular = tumOyuncular,
+                                            hedefOyuncuId = oyuncuId,
+                                            db = db
+                                        ),
+                                        kazanilanOyunSayisi = hesaplaKazanilanOyunSayisi(
+                                            oyuncuId = oyuncuId,
+                                            db = db
+                                        ),
+                                        toplamEndstandPuani = toplamEndstandPuani,
+                                        rotCezaAdet = rotCezalar.size,
+                                        rotCezaPuan = rotCezalar.sumOf { it.puan },
+                                        yesilCezaAdet = yesilCezalar.size,
+                                        yesilCezaPuan = yesilCezalar.sumOf { it.puan },
+                                        acdiSayisi = acdiSayisi,
+                                        bittiSayisi = db.turOyuncuSonucDao().oyuncununBittiSayisiniGetir(oyuncuId),
+                                        okeyleBitirmeSayisi = db.turOyuncuSonucDao().oyuncununOkeyleBitirmeSayisiniGetir(oyuncuId),
+                                        eldenBitirmeSayisi = db.turOyuncuSonucDao().oyuncununEldenBitirmeSayisiniGetir(oyuncuId),
+                                        ciftSayisi = db.turOyuncuSonucDao().oyuncununCiftSayisiniGetir(oyuncuId),
+                                        acamadiSayisi = db.turOyuncuSonucDao().oyuncununAcamadiSayisiniGetir(oyuncuId)
+                                    )
+                                }
+                            }
+
+                            if (uiState != null) {
+                                OyuncuStatistikEkrani(
+                                    uiState = uiState!!,
+                                    onGeriClick = { aktifEkran = Ekran.STATISTIK },
+                                    onSpieleClick = {
+                                        aktifEkran = Ekran.OYUNCU_STATISTIK_OYUNLAR_LISTE
+                                    },
+                                    onAcdiClick = {
+                                        seciliTurFiltreTipi = OyuncuTurFiltreTipi.ACDI
+                                        aktifEkran = Ekran.OYUNCU_STATISTIK_TUR_LISTE
+                                    },
+                                    onBittiClick = {
+                                        seciliTurFiltreTipi = OyuncuTurFiltreTipi.BITTI
+                                        aktifEkran = Ekran.OYUNCU_STATISTIK_TUR_LISTE
+                                    },
+                                    onOkeyleClick = {
+                                        seciliTurFiltreTipi = OyuncuTurFiltreTipi.OKEYLE
+                                        aktifEkran = Ekran.OYUNCU_STATISTIK_TUR_LISTE
+                                    },
+                                    onEldenClick = {
+                                        seciliTurFiltreTipi = OyuncuTurFiltreTipi.ELDEN
+                                        aktifEkran = Ekran.OYUNCU_STATISTIK_TUR_LISTE
+                                    },
+                                    onCiftClick = {
+                                        seciliTurFiltreTipi = OyuncuTurFiltreTipi.CIFT
+                                        aktifEkran = Ekran.OYUNCU_STATISTIK_TUR_LISTE
+                                    },
+                                    onAcamadiClick = {
+                                        seciliTurFiltreTipi = OyuncuTurFiltreTipi.ACAMADI
+                                        aktifEkran = Ekran.OYUNCU_STATISTIK_TUR_LISTE
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    Ekran.OYUNCU_STATISTIK_TUR_LISTE -> {
+                        val oyuncuId = seciliIstatistikOyuncuId
+                        val filtreTipi = seciliTurFiltreTipi
+                        if (oyuncuId != null && filtreTipi != null) {
+                            val uiState by produceState<OyuncuStatistikTurListeUiState?>(
+                                initialValue = null,
+                                key1 = oyuncuId,
+                                key2 = filtreTipi,
+                                key3 = tumOyuncular
+                            ) {
+                                val oyuncu = tumOyuncular.firstOrNull { it.id == oyuncuId }
+                                if (oyuncu == null) {
+                                    value = null
+                                    return@produceState
+                                }
+
+                                value = withContext(Dispatchers.IO) {
+                                    val tumSonuclar = db.turOyuncuSonucDao().oyuncununTumTurSonuclariniGetir(oyuncuId)
+                                    val uygunSonuclar = tumSonuclar.filter { sonuc ->
+                                        when (filtreTipi) {
+                                            OyuncuTurFiltreTipi.ACDI -> {
+                                                sonuc.girilenDeger != 0 &&
+                                                        sonuc.sonucPuani != 0 &&
+                                                        !sonuc.bitti &&
+                                                        !sonuc.okeyle &&
+                                                        !sonuc.eldenBitti &&
+                                                        !sonuc.cift &&
+                                                        !sonuc.acamadi
+                                            }
+                                            OyuncuTurFiltreTipi.BITTI -> sonuc.bitti
+                                            OyuncuTurFiltreTipi.OKEYLE -> sonuc.okeyle
+                                            OyuncuTurFiltreTipi.ELDEN -> sonuc.eldenBitti
+                                            OyuncuTurFiltreTipi.CIFT -> sonuc.cift
+                                            OyuncuTurFiltreTipi.ACAMADI -> sonuc.acamadi
+                                        }
+                                    }
+
+                                    val tarihFormatter = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+                                    val liste = uygunSonuclar.mapNotNull { sonuc ->
+                                        val tur = db.turDao().turGetir(sonuc.turId) ?: return@mapNotNull null
+                                        val oyun = db.oyunDao().oyunGetir(tur.oyunId) ?: return@mapNotNull null
+                                        val katilimcilar = db.oyunKatilimciDao().oyununKatilimcilariniGetir(oyun.id)
+                                        val takim1Adi = katilimcilar.firstOrNull { it.takimNo == 1 }?.takimAdi ?: "Team 1"
+                                        val takim2Adi = katilimcilar.firstOrNull { it.takimNo == 2 }?.takimAdi ?: "Team 2"
+                                        val tarihKaynak = oyun.bitisZamani ?: oyun.baslangicZamani
+
+                                        Triple(
+                                            tarihKaynak,
+                                            tur.turNo,
+                                            OyuncuTurListeItem(
+                                                oyunId = oyun.id,
+                                                turNo = tur.turNo,
+                                                tarihText = tarihFormatter.format(Date(tarihKaynak)),
+                                                aciklamaText = if (oyun.mod == "ortak") "$takim1Adi vs $takim2Adi" else "Einzelspiel"
+                                            )
+                                        )
+                                    }.sortedWith(
+                                        compareByDescending<Triple<Long, Int, OyuncuTurListeItem>> { it.first }
+                                            .thenByDescending { it.second }
+                                    ).map { it.third }
+
+                                    OyuncuStatistikTurListeUiState(
+                                        oyuncuAdi = oyuncu.ad,
+                                        filtreTipi = filtreTipi,
+                                        toplamAdet = liste.size,
+                                        turlar = liste
+                                    )
+                                }
+                            }
+
+                            if (uiState != null) {
+                                OyuncuStatistikTurListeEkrani(
+                                    uiState = uiState!!,
+                                    onGeriClick = { aktifEkran = Ekran.OYUNCU_STATISTIK }
+                                )
+                            }
+                        }
+                    }
+
+                    Ekran.OYUNCU_STATISTIK_OYUNLAR_LISTE -> {
+                        val oyuncuId = seciliIstatistikOyuncuId
+                        if (oyuncuId != null) {
+                            val uiState by produceState<OyuncuStatistikOyunlarListeUiState?>(
+                                initialValue = null,
+                                key1 = oyuncuId,
+                                key2 = tumOyuncular
+                            ) {
+                                val oyuncu = tumOyuncular.firstOrNull { it.id == oyuncuId }
+                                if (oyuncu == null) {
+                                    value = null
+                                    return@produceState
+                                }
+
+                                value = withContext(Dispatchers.IO) {
+                                    val bitenOyunlar = db.oyunDao().bitenOyunlariGetirFlow().first()
+                                    val tarihFormatter = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+
+                                    val oyunlar = bitenOyunlar.mapNotNull { oyun ->
+                                        val katilimcilar = db.oyunKatilimciDao().oyununKatilimcilariniGetir(oyun.id)
+                                        val benimKatilimim = katilimcilar.firstOrNull { it.oyuncuId == oyuncuId } ?: return@mapNotNull null
+                                        val turlar = db.turDao().oyununTurlariniGetirListe(oyun.id)
+
+                                        val tumOyunSonuclari = turlar.flatMap { tur ->
+                                            db.turOyuncuSonucDao().turunOyuncuSonuclariniGetirListe(tur.id)
+                                        }
+                                        val benimSonuclarim = tumOyunSonuclari.filter { it.oyuncuId == oyuncuId }
+                                        val tumCezalar = turlar.flatMap { tur ->
+                                            db.cezaDao().turunCezalariniGetirListe(tur.id)
+                                        }
+
+                                        val endstandPuani = benimSonuclarim.sumOf { it.sonucPuani }
+                                        val rotCezalar = tumCezalar.filter { it.kirmiziOyuncuId == oyuncuId }
+                                        val yesilCezalar = tumCezalar.filter { it.yesilOyuncuId == oyuncuId }
+                                        val puanProRundeText = if (benimSonuclarim.isEmpty()) {
+                                            "-"
+                                        } else {
+                                            String.format(
+                                                Locale.GERMANY,
+                                                "%.2f",
+                                                endstandPuani.toDouble() / benimSonuclarim.size.toDouble()
+                                            )
+                                        }
+
+                                        val kazanildi = if (oyun.mod == "ortak") {
+                                            val takim1Oyuncular = katilimcilar.filter { it.takimNo == 1 }.map { it.oyuncuId }.toSet()
+                                            val takim2Oyuncular = katilimcilar.filter { it.takimNo == 2 }.map { it.oyuncuId }.toSet()
+                                            var takim1Toplam = 0
+                                            var takim2Toplam = 0
+
+                                            turlar.forEach { tur ->
+                                                val sonuclar = db.turOyuncuSonucDao().turunOyuncuSonuclariniGetirListe(tur.id)
+                                                val cezalar = db.cezaDao().turunCezalariniGetirListe(tur.id)
+
+                                                takim1Toplam += sonuclar.filter { it.oyuncuId in takim1Oyuncular }.sumOf { it.sonucPuani }
+                                                takim2Toplam += sonuclar.filter { it.oyuncuId in takim2Oyuncular }.sumOf { it.sonucPuani }
+                                                takim1Toplam += cezalar.filter { it.kirmiziOyuncuId in takim1Oyuncular }.sumOf { it.puan }
+                                                takim2Toplam += cezalar.filter { it.kirmiziOyuncuId in takim2Oyuncular }.sumOf { it.puan }
+                                            }
+
+                                            val kazananTakimNo = when {
+                                                takim1Toplam < takim2Toplam -> 1
+                                                takim2Toplam < takim1Toplam -> 2
+                                                else -> null
+                                            }
+                                            kazananTakimNo != null && benimKatilimim.takimNo == kazananTakimNo
+                                        } else {
+                                            val oyuncuToplamlari = katilimcilar.associate { it.oyuncuId to 0 }.toMutableMap()
+
+                                            turlar.forEach { tur ->
+                                                val sonuclar = db.turOyuncuSonucDao().turunOyuncuSonuclariniGetirListe(tur.id)
+                                                val cezalar = db.cezaDao().turunCezalariniGetirListe(tur.id)
+
+                                                sonuclar.forEach { sonuc ->
+                                                    oyuncuToplamlari[sonuc.oyuncuId] = (oyuncuToplamlari[sonuc.oyuncuId] ?: 0) + sonuc.sonucPuani
+                                                }
+                                                cezalar.forEach { ceza ->
+                                                    oyuncuToplamlari[ceza.kirmiziOyuncuId] = (oyuncuToplamlari[ceza.kirmiziOyuncuId] ?: 0) + ceza.puan
+                                                }
+                                            }
+
+                                            val enIyiDeger = oyuncuToplamlari.values.minOrNull()
+                                            val tekKazanan = enIyiDeger != null && oyuncuToplamlari.values.count { it == enIyiDeger } == 1
+                                            tekKazanan && oyuncuToplamlari[oyuncuId] == enIyiDeger
+                                        }
+
+                                        val baslikText = if (oyun.mod == "ortak") {
+                                            val benimTakimNo = benimKatilimim.takimNo
+                                            val benimTakimAdi = katilimcilar.firstOrNull { it.takimNo == benimTakimNo }?.takimAdi ?: "Mein Team"
+                                            val rakipTakimAdi = katilimcilar.firstOrNull { it.takimNo != benimTakimNo }?.takimAdi ?: "Gegner"
+                                            "$benimTakimAdi vs. $rakipTakimAdi"
+                                        } else {
+                                            val digerAdlar = katilimcilar
+                                                .filter { it.oyuncuId != oyuncuId }
+                                                .mapNotNull { katilimci -> tumOyuncular.firstOrNull { it.id == katilimci.oyuncuId }?.ad }
+                                            if (digerAdlar.isEmpty()) "Einzelspiel" else "vs. ${digerAdlar.joinToString(", ")}"
+                                        }
+
+                                        Pair(
+                                            oyun.bitisZamani ?: oyun.baslangicZamani,
+                                            OyuncuOyunListeItem(
+                                                oyunId = oyun.id,
+                                                tarihText = tarihFormatter.format(Date(oyun.bitisZamani ?: oyun.baslangicZamani)),
+                                                baslikText = baslikText,
+                                                kazanildi = kazanildi,
+                                                turSayisi = benimSonuclarim.size,
+                                                endstandPuani = endstandPuani,
+                                                rotCezaAdet = rotCezalar.size,
+                                                rotCezaPuan = rotCezalar.sumOf { it.puan },
+                                                yesilCezaAdet = yesilCezalar.size,
+                                                yesilCezaPuan = yesilCezalar.sumOf { it.puan },
+                                                puanProRundeText = puanProRundeText
+                                            )
+                                        )
+                                    }.sortedByDescending { it.first }
+                                        .map { it.second }
+
+                                    OyuncuStatistikOyunlarListeUiState(
+                                        oyuncuAdi = oyuncu.ad,
+                                        toplamOyunSayisi = oyunlar.size,
+                                        oyunlar = oyunlar
+                                    )
+                                }
+                            }
+
+                            if (uiState != null) {
+                                OyuncuStatistikOyunlarListeEkrani(
+                                    uiState = uiState!!,
+                                    onGeriClick = { aktifEkran = Ekran.OYUNCU_STATISTIK }
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -853,3 +1174,101 @@ private fun TurOyuncuSonucEntity?.toSpielerRundenEndeUiState(
         acamadi = this?.acamadi ?: false
     )
 }
+private suspend fun hesaplaOyuncuRanki(
+    tumOyuncular: List<OyuncuEntity>,
+    hedefOyuncuId: Int,
+    db: AppDatabase
+): Int {
+    data class RankItem(
+        val oyuncuId: Int,
+        val oyuncuAdi: String,
+        val turSayisi: Int,
+        val toplamPuan: Int
+    )
+
+    val liste = tumOyuncular.map { oyuncu ->
+        val turSayisi = db.turOyuncuSonucDao().oyuncununOynadigiTurSayisiniGetir(oyuncu.id)
+        val turSonuclari = db.turOyuncuSonucDao().oyuncununTumTurSonuclariniGetir(oyuncu.id)
+        val toplamPuan = turSonuclari.sumOf { it.sonucPuani } + db.cezaDao().oyuncununCezaPuanToplaminiGetir(oyuncu.id)
+
+        RankItem(
+            oyuncuId = oyuncu.id,
+            oyuncuAdi = oyuncu.ad,
+            turSayisi = turSayisi,
+            toplamPuan = toplamPuan
+        )
+    }.sortedWith(
+        compareBy<RankItem> { it.turSayisi == 0 }
+            .thenBy { if (it.turSayisi == 0) Double.POSITIVE_INFINITY else it.toplamPuan.toDouble() / it.turSayisi.toDouble() }
+            .thenBy { it.oyuncuAdi.lowercase() }
+    )
+
+    return liste.indexOfFirst { it.oyuncuId == hedefOyuncuId }
+        .let { if (it >= 0) it + 1 else 0 }
+}
+
+private suspend fun hesaplaKazanilanOyunSayisi(
+    oyuncuId: Int,
+    db: AppDatabase
+): Int {
+    val bitenOyunlar = db.oyunDao().bitenOyunlariGetirFlow().first()
+    var kazanilanOyunSayisi = 0
+
+    bitenOyunlar.forEach { oyun ->
+        val katilimcilar = db.oyunKatilimciDao().oyununKatilimcilariniGetir(oyun.id)
+        val benimKatilimim = katilimcilar.firstOrNull { it.oyuncuId == oyuncuId } ?: return@forEach
+        val turlar = db.turDao().oyununTurlariniGetirListe(oyun.id)
+
+        if (oyun.mod == "ortak") {
+            val takim1Oyuncular = katilimcilar.filter { it.takimNo == 1 }.map { it.oyuncuId }.toSet()
+            val takim2Oyuncular = katilimcilar.filter { it.takimNo == 2 }.map { it.oyuncuId }.toSet()
+            var takim1Toplam = 0
+            var takim2Toplam = 0
+
+            turlar.forEach { tur ->
+                val sonuclar = db.turOyuncuSonucDao().turunOyuncuSonuclariniGetirListe(tur.id)
+                val cezalar = db.cezaDao().turunCezalariniGetirListe(tur.id)
+
+                takim1Toplam += sonuclar.filter { it.oyuncuId in takim1Oyuncular }.sumOf { it.sonucPuani }
+                takim2Toplam += sonuclar.filter { it.oyuncuId in takim2Oyuncular }.sumOf { it.sonucPuani }
+                takim1Toplam += cezalar.filter { it.kirmiziOyuncuId in takim1Oyuncular }.sumOf { it.puan }
+                takim2Toplam += cezalar.filter { it.kirmiziOyuncuId in takim2Oyuncular }.sumOf { it.puan }
+            }
+
+            val kazananTakimNo = when {
+                takim1Toplam < takim2Toplam -> 1
+                takim2Toplam < takim1Toplam -> 2
+                else -> null
+            }
+
+            if (kazananTakimNo != null && benimKatilimim.takimNo == kazananTakimNo) {
+                kazanilanOyunSayisi++
+            }
+        } else {
+            val oyuncuToplamlari = katilimcilar.associate { it.oyuncuId to 0 }.toMutableMap()
+
+            turlar.forEach { tur ->
+                val sonuclar = db.turOyuncuSonucDao().turunOyuncuSonuclariniGetirListe(tur.id)
+                val cezalar = db.cezaDao().turunCezalariniGetirListe(tur.id)
+
+                sonuclar.forEach { sonuc ->
+                    oyuncuToplamlari[sonuc.oyuncuId] = (oyuncuToplamlari[sonuc.oyuncuId] ?: 0) + sonuc.sonucPuani
+                }
+                cezalar.forEach { ceza ->
+                    oyuncuToplamlari[ceza.kirmiziOyuncuId] = (oyuncuToplamlari[ceza.kirmiziOyuncuId] ?: 0) + ceza.puan
+                }
+            }
+
+            val enIyiDeger = oyuncuToplamlari.values.minOrNull()
+            val tekKazanan = enIyiDeger != null && oyuncuToplamlari.values.count { it == enIyiDeger } == 1
+            if (tekKazanan && oyuncuToplamlari[oyuncuId] == enIyiDeger) {
+                kazanilanOyunSayisi++
+            }
+        }
+    }
+
+    return kazanilanOyunSayisi
+}
+
+
+// (Stray/duplicate OYUNCU_STATISTIK_OYUNLAR_LISTE block removed if present)

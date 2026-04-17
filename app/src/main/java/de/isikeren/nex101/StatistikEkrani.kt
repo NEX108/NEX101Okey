@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,6 +23,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -50,6 +52,7 @@ fun StatistikEkrani(
     val oyunKatilimciDao = remember { database.oyunKatilimciDao() }
     val turOyuncuSonucDao = remember { database.turOyuncuSonucDao() }
     val cezaDao = remember { database.cezaDao() }
+    BackHandler(onBack = onGeriClick)
 
     val oyuncular by oyuncuDao.tumOyunculariGetir().collectAsState(initial = emptyList())
 
@@ -71,7 +74,11 @@ fun StatistikEkrani(
                 turSayisi = turSayisi,
                 toplamPuan = turPuanToplami + cezaPuanToplami
             )
-        }.sortedBy { it.oyuncuAdi.lowercase() }
+        }.sortedWith(
+            compareBy<OyuncuIstatistikOzet> { it.turSayisi == 0 }
+                .thenBy { if (it.turSayisi == 0) Double.POSITIVE_INFINITY else it.toplamPuan.toDouble() / it.turSayisi.toDouble() }
+                .thenBy { it.oyuncuAdi.lowercase() }
+        )
     }
 
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -151,23 +158,23 @@ private fun StatistikTabloBaslik() {
     ) {
         StatistikHucre(
             text = "Spieler",
-            modifier = Modifier.weight(1.5f),
+            modifier = Modifier.weight(1f),
             bold = true,
             textAlign = TextAlign.Start
         )
         StatistikHucre(
             text = "Spiele",
-            modifier = Modifier.weight(0.8f),
+            modifier = Modifier.width(68.dp),
             bold = true
         )
         StatistikHucre(
             text = "Runden",
-            modifier = Modifier.weight(0.8f),
+            modifier = Modifier.width(74.dp),
             bold = true
         )
         StatistikHucre(
-            text = "Punkte",
-            modifier = Modifier.weight(0.9f),
+            text = "Pkt/Runde",
+            modifier = Modifier.width(86.dp),
             bold = true
         )
     }
@@ -190,7 +197,7 @@ private fun OyuncuStatistikSatiri(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(
-            modifier = Modifier.weight(1.5f)
+            modifier = Modifier.weight(1f)
         ) {
             Text(
                 text = item.oyuncuAdi,
@@ -206,15 +213,15 @@ private fun OyuncuStatistikSatiri(
 
         StatistikHucre(
             text = item.oyunSayisi.toString(),
-            modifier = Modifier.weight(0.8f)
+            modifier = Modifier.width(68.dp)
         )
         StatistikHucre(
             text = item.turSayisi.toString(),
-            modifier = Modifier.weight(0.8f)
+            modifier = Modifier.width(74.dp)
         )
         StatistikHucre(
-            text = item.toplamPuan.toString(),
-            modifier = Modifier.weight(0.9f),
+            text = if (item.turSayisi == 0) "-" else String.format(java.util.Locale.US, "%.2f", item.toplamPuan.toDouble() / item.turSayisi.toDouble()),
+            modifier = Modifier.width(86.dp),
             bold = true
         )
     }
@@ -262,7 +269,7 @@ private fun StatistikEkraniPreview() {
                     oyuncuAdi = "Eren",
                     oyunSayisi = 12,
                     turSayisi = 84,
-                    toplamPuan = 1440
+                    toplamPuan = 252
                 ),
                 onClick = {}
             )
@@ -273,7 +280,7 @@ private fun StatistikEkraniPreview() {
                     oyuncuAdi = "Semir",
                     oyunSayisi = 10,
                     turSayisi = 73,
-                    toplamPuan = 1387
+                    toplamPuan = 365
                 ),
                 onClick = {}
             )

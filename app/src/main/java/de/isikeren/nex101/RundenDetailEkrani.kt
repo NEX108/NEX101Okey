@@ -66,7 +66,7 @@ fun RundenDetailEkrani(
     onCezaClick: (CezaKaydi) -> Unit,
     onCezaSilClick: (CezaKaydi) -> Unit
 ) {
-    BackHandler(onBack = onGeriClick)
+    BackHandler(enabled = true, onBack = onGeriClick)
 
     var silinecekCeza by remember { mutableStateOf<CezaKaydi?>(null) }
 

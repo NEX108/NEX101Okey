@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -73,6 +74,7 @@ fun VorherigesOyunDetayEkrani(
     val turDao = remember { database.turDao() }
     val turOyuncuSonucDao = remember { database.turOyuncuSonucDao() }
     val cezaDao = remember { database.cezaDao() }
+    BackHandler(enabled = true, onBack = onGeriClick)
 
     val uiState by produceState<VorherigesOyunDetayUiState?>(initialValue = null, key1 = oyunId) {
         val oyun = oyunDao.oyunGetir(oyunId)
@@ -169,6 +171,7 @@ fun VorherigesOyunDetayEkrani(
     onGeriClick: () -> Unit,
     onRundeClick: (Int) -> Unit
 ) {
+    BackHandler(enabled = true, onBack = onGeriClick)
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
         Column(
             modifier = Modifier
